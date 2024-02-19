@@ -1,4 +1,31 @@
 const Item = require("../models/items.model");
+const cron = require("node-cron");
+const sendEmail = require("../helpers/nodeMailer/Email");
+
+cron.schedule(" * * * * *", async () => {
+  const allItems = await Item.find({});
+  const modelNum = allItems.length;
+  console.log("Total Stock of every Model:", modelNum);
+});
+
+const deleteSingle = async (req, res) => {
+  try {
+    const Id = req.params.id;
+    const item = await Item.findByIdAndUpdate(Id, { $inc: { quantity: -1 } });
+
+    if (item.quantity == 1) {
+      await item.deleteOne();
+      await sendEmail();
+    }
+
+    return res.status(200).json({ message: "item is deleted " });
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(500)
+      .json({ error: "Error", message: "Internal Server error" });
+  }
+};
 
 const addItem = async (req, res, next) => {
   try {
@@ -27,24 +54,6 @@ const getAll = async (req, res) => {
     return res
       .status(500)
       .json({ error: "ERROR", message: "Internal server error" });
-  }
-};
-
-const deleteSingle = async (req, res) => {
-  try {
-    const Id = req.params.id;
-
-    const item = await Item.findByIdAndUpdate(Id, { $inc: { quantity: -1 } });
-    if (item.quantity == 1) {
-      await item.deleteOne();
-    }
-
-    return res.status(200).json({ message: "item is deleted " });
-  } catch (error) {
-    console.log(error);
-    return res
-      .status(500)
-      .json({ error: "Error", message: "Internal Server error" });
   }
 };
 
@@ -80,18 +89,7 @@ const getInvestment = async (req, res, next) => {
       {
         $match: {},
       },
-      // {
-      // $group: {
-      //   modelName: 1,
-      //   total: { $sum: { $multiply: ["$price", "$quantity"] } },
-      // },
-      // {
-      //   $addFields: {
-      //     amount: {
-      //       $multiply: ["$price", "$quantity"],
-      //     },
-      //   },
-      // },
+
       {
         $group: {
           _id: null,
